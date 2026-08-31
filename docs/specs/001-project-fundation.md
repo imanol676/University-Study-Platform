@@ -33,14 +33,14 @@ Esta fase no incluye lógica de procesamiento de documentos, RAG ni sesiones de 
 * **Estructura y Scaffolding Base**:
   * Inicialización de Next.js con App Router y TypeScript (modo estricto, sin `any`).
   * Configuración de Tailwind CSS y base de componentes shadcn/ui.
-  * Configuración PWA (manifest, viewport, theme meta tags).
+  * Configuración PWA base (manifest, viewport y meta tags para instalación y visualización mobile-first).
   * Estructura de carpetas modular por capas (`app`, `components`, `features`, `services`, `repositories`, `lib`, `types`).
   * Setup de `TanStack Query` (`QueryClientProvider`) para gestión de server-state en cliente.
   * Configuración de tooling: ESLint, Prettier, TypeScript config, scripts de validación (`typecheck`, `lint`, `test`, `build`).
 
 * **Base de Datos & ORM**:
   * Configuración de Prisma ORM conectado a PostgreSQL (Supabase).
-  * Modelo inicial `User` / `Profile` con sincronización segura tras el registro en Supabase Auth.
+  * Modelo inicial `User` / `Profile` sincronizado de forma segura con `auth.users` mediante trigger de base de datos.
   * Migraciones estructuradas de base de datos.
   * Configuración de Row Level Security (RLS) básica para la tabla de perfiles de usuario.
 
@@ -51,14 +51,14 @@ Esta fase no incluye lógica de procesamiento de documentos, RAG ni sesiones de 
     * Inicio de sesión (Email + Contraseña).
     * Recuperación / restablecimiento de contraseña.
     * Cierre de sesión (Sign Out).
-    * Callback handler para verificación y manejo de sesiones.
+    * Callback handler con PKCE (`/api/auth/callback`) para verificación de email y recuperación de sesión.
   * Formularios de autenticación con validación en cliente y servidor (Zod + React Hook Form).
 
 * **Protección de Rutas & Middleware**:
   * Middleware de Next.js para refresco de tokens de sesión y redirección.
   * Rutas públicas (`/`, `/about`, etc.).
   * Rutas de autenticación exclusivas para invitados (`/login`, `/register`, `/forgot-password`, `/reset-password`). Redirigen a `/dashboard` si ya hay sesión.
-  * Rutas protegidas (`/dashboard`, `/courses`, `/settings`, etc.). Redirigen a `/login?next=<path>` si no hay sesión.
+  * Rutas protegidas (`/dashboard`, `/courses`, `/progress`, `/settings`, etc.). Redirigen a `/login?next=<path>` si no hay sesión.
 
 * **App Shell & Layout**:
   * Layout de autenticación limpio y sobrio.
@@ -75,6 +75,7 @@ Esta fase no incluye lógica de procesamiento de documentos, RAG ni sesiones de 
 * Extracción de texto, chunking y generación de embeddings con pgvector (corresponde a `SPEC-003: Ingestion & Vector Pipeline`).
 * Servicios de IA (Azure OpenAI, TTS, STT) y Active Recall (corresponde a specs posteriores).
 * CRUD completo de materias/cursos y asignaturas (sólo se implementará la vista placeholder/dashboard del layout).
+* Service Workers complejos con estrategias avanzadas de cache offline (diferidos a fases posteriores con contenido offline).
 * Pasarelas de pago o límites de facturación.
 
 ---
@@ -92,10 +93,12 @@ src/
 │   │   ├── login/
 │   │   ├── register/
 │   │   ├── forgot-password/
+│   │   ├── reset-password/
 │   │   └── layout.tsx
 │   ├── (dashboard)/            # Grupo de rutas protegidas bajo el App Shell
 │   │   ├── dashboard/
 │   │   ├── courses/            # Placeholder de navegación
+│   │   ├── progress/           # Placeholder de navegación
 │   │   ├── settings/           # Ajustes de cuenta/perfil
 │   │   └── layout.tsx          # Shell principal (Sidebar + Mobile Bottom Nav)
 │   ├── api/                    # Route Handlers si son necesarios (mínimos, preferir Server Actions)
@@ -153,7 +156,7 @@ src/
 
 ### 4.1 Schema de Base de Datos
 
-En PostgreSQL, Supabase gestiona la tabla `auth.users`. La aplicación mantendrá una tabla pública `profiles` en el esquema `public` sincronizada mediante clave foránea con `auth.users.id`.
+En PostgreSQL, Supabase gestiona la tabla `auth.users` en el esquema `auth`. La aplicación mantendrá una tabla `profiles` en el esquema `public`, vinculada de forma directa con `auth.users.id`.
 
 ```prisma
 // prisma/schema.prisma
@@ -186,31 +189,53 @@ model Profile {
 }
 ```
 
-### 4.2 Row Level Security (RLS) y Políticas
+> **Nota de Integridad Referencial**: En la migración inicial de PostgreSQL generada por Prisma, se incluirá la restricción de clave foránea cross-schema explícita:
+> ```sql
+> ALTER TABLE public.profiles 
+> ADD CONSTRAINT fk_profiles_user 
+> FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+> ```
 
-Las migraciones de PostgreSQL deben asegurar que la tabla `public.profiles` tenga RLS habilitado:
+### 4.2 Sincronización Automática (Trigger) y Row Level Security (RLS)
+
+Para garantizar consistencia y evitar registros huérfanos o condiciones de carrera con confirmación de emails, la creación del registro en `public.profiles` se delega a un trigger de PostgreSQL `SECURITY DEFINER`:
 
 ```sql
--- Habilitar RLS
+-- 1. Función y Trigger de creación automática de perfil
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'full_name',
+    'STUDENT',
+    NOW(),
+    NOW()
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 2. Habilitar RLS en public.profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Política de lectura: los usuarios solo pueden leer su propio perfil
+-- Política de lectura: los usuarios autenticados solo leen su propio perfil
 CREATE POLICY "Users can view own profile" 
 ON public.profiles 
 FOR SELECT 
 USING (auth.uid() = id);
 
--- Política de actualización: los usuarios solo pueden actualizar su propio perfil
+-- Política de actualización: los usuarios autenticados solo actualizan su propio perfil
 CREATE POLICY "Users can update own profile" 
 ON public.profiles 
 FOR UPDATE 
 USING (auth.uid() = id);
-
--- Política de inserción: vinculada a la creación de usuario
-CREATE POLICY "Users can insert own profile" 
-ON public.profiles 
-FOR INSERT 
-WITH CHECK (auth.uid() = id);
 ```
 
 ---
@@ -223,6 +248,7 @@ Se implementarán los adaptadores estándar de `@supabase/ssr`:
 1. **`lib/supabase/client.ts`**: Cliente para componentes del navegador (`createBrowserClient`).
 2. **`lib/supabase/server.ts`**: Cliente para Server Components, Server Actions y Route Handlers (`createServerClient` gestionando cookies de `next/headers`).
 3. **`lib/supabase/middleware.ts`**: Cliente especializado para el Middleware de Next.js que renueva la sesión mediante cookies en cada request.
+4. **`src/app/api/auth/callback/route.ts`**: Route Handler con flujo PKCE que procesa el código de intercambio (`supabase.auth.exchangeCodeForSession(code)`) para confirmación de email y redirección de sesión segura hacia `/reset-password` o `/dashboard`.
 
 ### 5.2 Estrategia de Middleware (`middleware.ts`)
 
@@ -254,8 +280,8 @@ acceso     /login?next=<path>            a /dashboard acceso
 
 1. **Registro (`/register`)**:
    * Campos: Nombre completo, Email institucional o personal, Contraseña (mínimo 8 caracteres).
-   * Al registrarse con éxito en Supabase Auth, se crea el registro correspondiente en `public.profiles` mediante el `UserService` / `UserRepository`.
-   * Si la confirmación de email está habilitada en Supabase, mostrar estado informativo claro.
+   * Al registrarse con éxito en Supabase Auth (`supabase.auth.signUp()`), el trigger en base de datos crea de forma atómica el registro en `public.profiles` con los metadatos (`full_name`).
+   * Si la confirmación de email está habilitada en Supabase, mostrar estado informativo claro para que el usuario revise su bandeja de entrada.
 
 2. **Inicio de Sesión (`/login`)**:
    * Campos: Email, Contraseña.
@@ -263,8 +289,9 @@ acceso     /login?next=<path>            a /dashboard acceso
    * Redirección respetando el parámetro query `next` si existe (o `/dashboard` por defecto).
 
 3. **Recuperación de Contraseña (`/forgot-password` y `/reset-password`)**:
-   * Formulario para solicitar enlace de recuperación de contraseña al correo.
-   * Vista de actualización de contraseña recibiendo el token/código seguro.
+   * En `/forgot-password`: Formulario para solicitar correo de recuperación (`supabase.auth.resetPasswordForEmail()`).
+   * El correo redirige a `/api/auth/callback?next=/reset-password`, donde se intercambia el código PKCE por una sesión activa.
+   * En `/reset-password`: Formulario para ingresar y persistir la nueva contraseña (`supabase.auth.updateUser({ password })`).
 
 4. **Cierre de Sesión (Sign Out)**:
    * Acción server-side / client-side que invalida el token de Supabase, limpia las cookies y redirige al usuario a `/login`.
@@ -365,7 +392,7 @@ export interface IUserRepository {
 
 // src/services/auth/auth.service.ts
 export interface IAuthService {
-  signUp(input: SignUpInput): Promise<{ user: UserProfile; requiresEmailConfirmation: boolean }>;
+  signUp(input: SignUpInput): Promise<{ user: UserProfile | null; requiresEmailConfirmation: boolean }>;
   signInWithPassword(input: SignInInput): Promise<{ user: UserProfile }>;
   signOut(): Promise<void>;
   getCurrentUser(): Promise<UserProfile | null>;
@@ -419,7 +446,7 @@ export type SignUpInput = z.infer<typeof SignUpSchema>;
 * [ ] Prisma se conecta correctamente a PostgreSQL y las migraciones se ejecutan mediante `npx prisma migrate dev`.
 
 ### 9.2 Autenticación y Sesiones
-* [ ] **Registro**: Un usuario puede registrarse con nombre, correo y contraseña válidos. Se crea la cuenta en Supabase Auth y el perfil en `public.profiles`.
+* [ ] **Registro**: Un usuario puede registrarse con nombre, correo y contraseña válidos. Se crea la cuenta en Supabase Auth y el trigger de base de datos crea de forma atómica el perfil en `public.profiles`.
 * [ ] **Validación**: El formulario de registro rechaza correos inválidos o contraseñas menores a 8 caracteres con mensajes claros en español.
 * [ ] **Login**: Un usuario registrado puede iniciar sesión y es redirigido a `/dashboard`.
 * [ ] **Credenciales Erróneas**: Si se ingresan credenciales incorrectas, se muestra un mensaje de error legible sin exponer detalles técnicos.

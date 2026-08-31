@@ -1,0 +1,16 @@
+{
+  "name": "University Study Platform",
+  "short_name": "StudyPlatform",
+  "description": "Plataforma de estudio y aprendizaje universitario basada en audio, active recall y contexto por materia.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
