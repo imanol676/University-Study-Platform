@@ -69,19 +69,19 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full shadow-sm border-border">
-      <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">
+    <Card className="w-full shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-white/[0.12] bg-slate-950/60 backdrop-blur-2xl">
+      <CardHeader className="space-y-1.5 text-center pb-6">
+        <CardTitle className="text-2xl font-bold tracking-tight text-white/95">
           Iniciar sesión
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-zinc-400 text-sm">
           Ingresá tus credenciales para acceder a tus materias y sesiones de estudio
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           {serverError && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+            <div className="rounded-xl bg-destructive/15 p-3 text-sm text-destructive border border-destructive/25 backdrop-blur-md">
               {serverError}
             </div>
           )}

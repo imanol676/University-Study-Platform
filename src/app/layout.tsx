@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#050811",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -30,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full">
-      <body className="h-full bg-background font-sans antialiased text-foreground">
+    <html lang="es" className="dark h-full">
+      <body className="h-full bg-background font-sans antialiased text-foreground selection:bg-primary/30 selection:text-white">
         <QueryProvider>
           {children}
           <Toaster richColors position="top-right" />

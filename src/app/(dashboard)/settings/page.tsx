@@ -18,41 +18,41 @@ export default async function SettingsPage() {
       </div>
 
       <div className="max-w-2xl space-y-6">
-        <Card className="border-border shadow-sm">
+        <Card className="hover:border-white/[0.18] transition-all duration-300">
           <CardHeader>
-            <CardTitle className="text-lg">Perfil del Estudiante</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg font-semibold text-white/95">Perfil del Estudiante</CardTitle>
+            <CardDescription className="text-zinc-400">
               Información asociada a tu cuenta académica
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Nombre completo</Label>
+              <Label htmlFor="fullName" className="text-zinc-300">Nombre completo</Label>
               <Input
                 id="fullName"
                 defaultValue={session?.profile?.fullName ?? ""}
                 disabled
-                className="bg-muted"
+                className="bg-white/[0.02] border-white/[0.08] text-zinc-300 cursor-default"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
+              <Label htmlFor="email" className="text-zinc-300">Correo electrónico</Label>
               <Input
                 id="email"
                 defaultValue={session?.user?.email ?? ""}
                 disabled
-                className="bg-muted"
+                className="bg-white/[0.02] border-white/[0.08] text-zinc-300 cursor-default"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Rol</Label>
+              <Label htmlFor="role" className="text-zinc-300">Rol</Label>
               <Input
                 id="role"
                 defaultValue={session?.profile?.role ?? "STUDENT"}
                 disabled
-                className="bg-muted"
+                className="bg-white/[0.02] border-white/[0.08] text-zinc-300 cursor-default"
               />
             </div>
           </CardContent>

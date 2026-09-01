@@ -67,15 +67,15 @@ export function ResetPasswordForm() {
 
   if (isSuccess) {
     return (
-      <Card className="w-full shadow-sm border-border">
+      <Card className="w-full shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-white/[0.12] bg-slate-950/60 backdrop-blur-2xl">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary border border-primary/20 shadow-[0_0_15px_rgba(99,102,241,0.3)]">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">
+          <CardTitle className="text-2xl font-bold tracking-tight text-white/95">
             ¡Contraseña actualizada!
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-zinc-400">
             Tu contraseña ha sido modificada con éxito. Redirigiendo a tu panel...
           </CardDescription>
         </CardHeader>
@@ -84,19 +84,19 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <Card className="w-full shadow-sm border-border">
-      <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">
+    <Card className="w-full shadow-[0_16px_48px_rgba(0,0,0,0.5)] border border-white/[0.12] bg-slate-950/60 backdrop-blur-2xl">
+      <CardHeader className="space-y-1.5 text-center pb-6">
+        <CardTitle className="text-2xl font-bold tracking-tight text-white/95">
           Nueva contraseña
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-zinc-400 text-sm">
           Ingresá una contraseña segura de al menos 8 caracteres
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           {serverError && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+            <div className="rounded-xl bg-destructive/15 p-3 text-sm text-destructive border border-destructive/25 backdrop-blur-md">
               {serverError}
             </div>
           )}
