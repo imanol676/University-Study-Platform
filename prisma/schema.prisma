@@ -13,6 +13,17 @@ enum Role {
   ADMIN
 }
 
+enum CourseColor {
+  INDIGO
+  BLUE
+  EMERALD
+  AMBER
+  ROSE
+  PURPLE
+  SLATE
+  CYAN
+}
+
 model Profile {
   id        String   @id @db.Uuid
   email     String   @unique
@@ -22,5 +33,27 @@ model Profile {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Relaciones
+  courses   Course[]
+
   @@map("profiles")
+}
+
+model Course {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  name        String      @db.VarChar(120)
+  code        String?     @db.VarChar(30)
+  description String?     @db.Text
+  term        String?     @db.VarChar(60)
+  color       CourseColor @default(INDIGO)
+  isArchived  Boolean     @default(false) @map("is_archived")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  user        Profile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isArchived])
+  @@map("courses")
 }

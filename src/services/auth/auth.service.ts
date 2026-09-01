@@ -1,3 +1,4 @@
+import { requestCache } from "@/lib/cache";
 import { createClient } from "@/lib/supabase/server";
 import { userRepository, IUserRepository } from "@/repositories/user.repository";
 import { SignInInput, SignUpInput } from "@/features/auth/schemas/auth.schema";
@@ -16,6 +17,7 @@ export interface IAuthService {
 export class AuthService implements IAuthService {
   constructor(private userRepo: IUserRepository = userRepository) {}
 
+  // ... [methods before getCurrentSession]
   async signUp(input: SignUpInput): Promise<AuthResponse<{ id: string; email: string }>> {
     try {
       const supabase = createClient();
@@ -180,7 +182,7 @@ export class AuthService implements IAuthService {
     }
   }
 
-  async getCurrentSession(): Promise<AuthSession | null> {
+  getCurrentSession = requestCache(async (): Promise<AuthSession | null> => {
     try {
       const supabase = createClient();
       const {
@@ -209,7 +211,7 @@ export class AuthService implements IAuthService {
       console.error("AuthService.getCurrentSession error:", err);
       return null;
     }
-  }
+  });
 
   private mapAuthError(message: string): string {
     const lower = message.toLowerCase();
