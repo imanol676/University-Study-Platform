@@ -2,11 +2,13 @@ import Link from "next/link";
 import { BookOpen, Clock, Sparkles, ArrowRight, Plus } from "lucide-react";
 import { authService } from "@/services/auth/auth.service";
 import { courseService } from "@/services/course/course.service";
+import { materialService } from "@/services/material/material.service";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { CourseCard } from "@/components/courses/CourseCard";
+import { FileText } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await authService.getCurrentSession();
@@ -14,6 +16,10 @@ export default async function DashboardPage() {
 
   const activeCourseCount = session
     ? await courseService.getActiveCourseCount(session.user.id)
+    : 0;
+
+  const totalMaterialCount = session
+    ? await materialService.getTotalMaterialCount(session.user.id)
     : 0;
 
   const recentCourses = session
@@ -67,16 +73,20 @@ export default async function DashboardPage() {
         <Card className="hover:border-white/[0.18] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-zinc-400">
-              Revisiones pendientes
+              Documentos cargados
             </CardTitle>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] border border-white/[0.08] text-zinc-300">
-              <Clock className="h-4 w-4 text-indigo-400" />
+              <FileText className="h-4 w-4 text-rose-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-white/95">0</div>
+            <div className="text-3xl font-bold tracking-tight text-white/95">
+              {totalMaterialCount}
+            </div>
             <p className="text-xs text-zinc-400 mt-1">
-              Temas recomendados para repasar hoy
+              {totalMaterialCount === 1
+                ? "1 archivo o apunte registrado"
+                : `${totalMaterialCount} archivos y apuntes registrados`}
             </p>
           </CardContent>
         </Card>
